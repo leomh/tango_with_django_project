@@ -2,7 +2,11 @@ from django.shortcuts import render
 from django.http import HttpResponse
 
 def index(request):
-	return HttpResponse("Rango says hey there partner! <br/> <a href='/rango/about/'>About</a>")
+	# dictionary will be passed to the template engine as its context
+	context_dict = {'boldmessage': "Crunchy, creamy, cookie, candy, cupcake!"}
+	# the render takes the user request, the index page, and the dictionary to produce an HTML page
+	# which is then dispatched to the user's web browser
+	return render(request, 'rango/index.html', context=context_dict)
 	
 def about(request):
 	return HttpResponse("Rango says here is the about page. <br/> <a href='/rango/'>Index</a>")
