@@ -6,7 +6,7 @@ class Category(models.Model):
     # store character data
     name = models.CharField(max_length=128, unique=True)
 
-    def __str__(self):
+    def __self__(self):
         return self.name
 
 class Page(models.Model):
