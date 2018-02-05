@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -5,6 +6,35 @@ from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from rango.models import Category, Page
 from rango.forms import CategoryForm, PageForm, UserForm, UserProfileForm
+
+
+# helper method
+def get_server_side_cookie(request, cookie, default_val=None):
+    val = request.session.get(cookie)
+    if not val:
+        val = default_val
+    return val
+
+
+# helper method
+def visitor_cookie_handler(request):
+    # If the visits cookie exists, the value returned is cast to ant int
+    # else default value is 1
+    visits = int(get_server_side_cookie(request, 'visits', '1'))
+
+    last_visit_cookie = get_server_side_cookie(request, 'last_visit', str(datetime.now()))
+    last_visit_time = datetime.strptime(last_visit_cookie[:-7], '%Y-%m-%d %H:%M:%S')
+
+    # if it's been more than 7 days
+    if (datetime.now() - last_visit_time).days > 0:
+        visits = visits + 1
+        # Update the last visit cookie now that we have updated the count
+        request.session['last_visit'] = str(datetime.now())
+    else:
+        visits = 1
+        request.session['last_visit'] = last_visit_cookie
+
+    request.session['visits'] = visits
 
 
 def index(request):
@@ -21,12 +51,27 @@ def index(request):
 
     context_dict = {'categories': category_list, 'pages': page_list}
 
-    # Render the response
-    return render(request, 'rango/index.html', context_dict)
+    # Call the helper function to handle the cookies
+    visitor_cookie_handler(request)
+    context_dict['visits'] = request.session['visits']
+
+    # Obtain our response to be able to add cookie info
+    response = render(request, 'rango/index.html', context_dict)
+
+    # Render the response, with updated cookies
+    return response
 
 
 def about(request):
-    return render(request, 'rango/about.html')
+    # Call the helper function to handle the cookies
+    visitor_cookie_handler(request)
+    count = request.session['visits']
+
+    # Obtain our response to be able to add cookie info
+    response = render(request, 'rango/about.html', {'visits': count})
+
+    # Render the response, with updated cookies
+    return response
 
 
 def show_category(request, category_name_slug):
@@ -58,6 +103,7 @@ def show_category(request, category_name_slug):
     # Render the response and return it
     return render(request, 'rango/category.html', context_dict)
 
+
 @login_required
 def add_category(request):
     # three scenarios:
@@ -78,7 +124,7 @@ def add_category(request):
             # We direct the user back to the index page
             # because the most recent category added is on the index page
             # print confirmation that the category has been added
-            print (category, category.slug)
+            print(category, category.slug)
             return index(request)
         else:
             # print errors contained in the form to the terminal
@@ -87,6 +133,7 @@ def add_category(request):
     # Will handle the bad form, new form, or no form supplied cases
     # Render the form with any error messages
     return render(request, 'rango/add_category.html', {'form': form})
+
 
 @login_required
 def add_page(request, category_name_slug):
@@ -145,7 +192,8 @@ def register(request):
         user_form = UserForm()
         profile_form = UserProfileForm()
 
-    return render(request, 'rango/register.html', {'user_form': user_form, 'profile_form': profile_form, 'registered': registered})
+    return render(request, 'rango/register.html',
+                  {'user_form': user_form, 'profile_form': profile_form, 'registered': registered})
 
 
 def user_login(request):
